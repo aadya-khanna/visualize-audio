@@ -1,49 +1,44 @@
-# mood-visualizer
+# visualize-audio
 
-Live audio visualizer, colored by feature extraction (Essentia.js), labeled with
-whatever's currently playing on Spotify.
+A live audio visualizer that reacts to real sound (via loopback capture + Essentia.js feature
+extraction) and shows what's currently playing on Spotify alongside it. Runs as a web app or
+a desktop app via Electron.
 
-Two independent feeds, stitched together:
-- **Spotify Web API** — polled for track/artist/album metadata (not audio; Spotify's stream is DRM-locked).
-- **Loopback audio capture → Essentia.js** — an `AnalyserNode` drives the raw FFT bars every frame;
-  Essentia (WASM) samples energy/spectral-centroid/loudness every ~150ms to drive color/mood.
+## Getting started — web app
 
-## 1. Spotify app setup
+1. In your [Spotify developer dashboard](https://developer.spotify.com/dashboard), add redirect
+   URI `http://127.0.0.1:5173/`, then copy the Client ID.
+2. `cp .env.example .env` and set `VITE_SPOTIFY_CLIENT_ID`.
+3. Install a virtual loopback device so the app can capture your system audio — recommended:
+   [Background Music](https://github.com/kyleneideck/BackgroundMusic)
+   (`brew install --cask background-music`). BlackHole works too. Or skip this and just use
+   your microphone — lower quality, zero setup.
+4. `npm install && npm run dev`, open `http://127.0.0.1:5173`.
 
-You already have a Spotify developer app — reuse it:
+## Getting started — desktop app (Electron)
 
-1. Go to https://developer.spotify.com/dashboard → your app → **Settings**.
-2. Under **Redirect URIs**, add: `http://127.0.0.1:5173/` (Vite's default dev URL — use
-   `127.0.0.1`, not `localhost`, Spotify rejects the latter).
-3. Copy the **Client ID**.
-4. `cp .env.example .env` and set `VITE_SPOTIFY_CLIENT_ID`.
-
-No client secret needed — this uses Authorization Code + PKCE, entirely client-side.
-
-## 2. Loopback audio device (required — see below for why)
-
-Spotify's stream is DRM-protected, so the visualizer can't read it directly. Install a
-virtual loopback device that routes your speaker output back in as a "microphone":
-
-- **macOS**: [BlackHole](https://existential.audio/blackhole/) (2ch is enough) — then in
-  System Settings → Sound → Output, either switch output to BlackHole (you'll lose normal
-  speaker output, use a Multi-Output Device in Audio MIDI Setup to send audio to both
-  BlackHole and your speakers), or use "Aggregate/Multi-Output Device" for both.
-- **Windows**: [VB-Cable](https://vb-audio.com/Cable/).
-
-The app lists all audio *input* devices — pick the loopback one there.
-
-## 3. Run it
+Same Spotify/`.env` setup as above (the desktop app reuses the exact same redirect URI). Then:
 
 ```
-npm install
-npm run dev
+npm run electron
 ```
 
-Open http://127.0.0.1:5173, connect Spotify, pick your loopback device, hit play on Spotify.
+This builds the app and opens it in a native window. No separate packaging step yet — this
+runs from source via `npx electron .`.
 
-## Notes
+## Spotify user limitation
 
-- `getUserMedia`/`AudioContext` require a secure context — `localhost`/`127.0.0.1` counts,
-  but this won't work over plain `http://<lan-ip>`.
-- Tokens live in `sessionStorage` (cleared on tab close) — re-login each session.
+The app is registered in Spotify's **Development Mode**, capped at 25 users total, added
+manually by email in the Spotify dashboard. Going beyond that requires Spotify's Extended Quota
+Mode review process — not set up here.
+
+## Known issues
+
+- **Electron + virtual audio device causes a ~15s glitch on connect.** The first time the app
+  opens a stream to a loopback device (Background Music/BlackHole) inside the Electron build,
+  CoreAudio renegotiates that device's format, briefly glitching anything already playing
+  through it. It self-resolves after ~15 seconds. Not present in the web app (regular Chrome
+  handles this negotiation more gracefully than Electron's bundled Chromium). Workaround: start
+  the visualizer *before* starting playback, so the glitch happens on silence.
+- Bluetooth output devices can add their own latency/dropout issues when combined with a
+  loopback device — wired output is more reliable if you hit stutter unrelated to the above.
