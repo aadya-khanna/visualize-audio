@@ -21,9 +21,8 @@ function waitForWasmReady() {
   })
 }
 
-// Lists audio *input* devices. A virtual loopback device (BlackHole, VB-Cable)
-// shows up here just like a microphone — pick it in the UI to visualize
-// whatever's playing through your speakers (e.g. Spotify).
+// Lists audio *input* devices. A virtual loopback device (BlackHole, VB-Cable,
+// Background Music) shows up here just like a microphone.
 export async function listInputDevices() {
   await navigator.mediaDevices.getUserMedia({ audio: true }) // triggers permission + labels
   const devices = await navigator.mediaDevices.enumerateDevices()

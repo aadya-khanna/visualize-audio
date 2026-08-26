@@ -25,7 +25,7 @@ function randomString(length = 64) {
 export async function login() {
   const verifier = randomString()
   const challenge = base64url(await sha256(verifier))
-  sessionStorage.setItem('spotify_verifier', verifier)
+  localStorage.setItem('spotify_verifier', verifier)
 
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
@@ -40,7 +40,7 @@ export async function login() {
 }
 
 async function exchangeCodeForToken(code) {
-  const verifier = sessionStorage.getItem('spotify_verifier')
+  const verifier = localStorage.getItem('spotify_verifier')
   const body = new URLSearchParams({
     client_id: CLIENT_ID,
     grant_type: 'authorization_code',
@@ -83,11 +83,11 @@ async function refreshToken() {
 
 function saveTokens(data) {
   const expiresAt = Date.now() + data.expires_in * 1000
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ ...data, expires_at: expiresAt }))
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...data, expires_at: expiresAt }))
 }
 
 function getStoredTokens() {
-  const raw = sessionStorage.getItem(STORAGE_KEY)
+  const raw = localStorage.getItem(STORAGE_KEY)
   return raw ? JSON.parse(raw) : null
 }
 
@@ -112,7 +112,7 @@ export async function getAccessToken() {
 }
 
 export function logout() {
-  sessionStorage.removeItem(STORAGE_KEY)
+  localStorage.removeItem(STORAGE_KEY)
 }
 
 export async function getCurrentlyPlaying(accessToken) {
