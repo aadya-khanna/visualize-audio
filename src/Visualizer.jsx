@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import { targetColor } from './mood.js'
+import { frequencyColor, targetColor } from './mood.js'
 import { drawBarsNormal, drawBars8Bit, drawCurveArea } from './renderers.js'
 
 const DISPLAY_MODES = [
   { key: 'normal', label: 'Normal' },
   { key: '8bit', label: '8-Bit' },
   { key: 'curve', label: 'Curve' },
+]
+
+const COLOR_MODES = [
+  { key: 'freq', label: 'Frequency' },
+  { key: 'intensity', label: 'Intensity' },
 ]
 
 function clamp255(v) {
@@ -57,11 +62,11 @@ function logBarValue(freqData, barIndex) {
   return count ? sum / count / 255 : 0
 }
 
-// Bars driven by live FFT data (log-spaced buckets). Color is a curated
-// palette blend driven by essentia's energy/centroid signal — each bar eases
-// toward that shared target at its own fixed, gentle pace, so when the song's
-// mood shifts, bars catch up unevenly over several seconds (lava-lamp style)
-// instead of the whole display snapping or shimmering in lockstep.
+// Bars driven by live FFT data (log-spaced buckets). Color target depends on
+// colorMode: "freq" fixes each bar's target by its position in the spectrum
+// (bass -> red, treble -> violet); "intensity" shares one mood-derived target
+// (energy/centroid) across all bars. Either way bars ease toward their target
+// at their own fixed, gentle pace so color settles in smoothly, never snaps.
 export default function Visualizer({ engineRef, trackMeta }) {
   const canvasRef = useRef(null)
   const rafRef = useRef(null)
@@ -78,12 +83,18 @@ export default function Visualizer({ engineRef, trackMeta }) {
   )
   const displayModeRef = useRef('normal')
   const [displayMode, setDisplayMode] = useState('normal')
+  const colorModeRef = useRef('freq')
+  const [colorMode, setColorMode] = useState('freq')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [gearRotation, setGearRotation] = useState(0)
 
   useEffect(() => {
     displayModeRef.current = displayMode
   }, [displayMode])
+
+  useEffect(() => {
+    colorModeRef.current = colorMode
+  }, [colorMode])
 
   function toggleSettings() {
     setSettingsOpen((open) => !open)
@@ -128,7 +139,8 @@ export default function Visualizer({ engineRef, trackMeta }) {
       const barWidth = w / BAR_COUNT
       const smoothed = smoothedBarsRef.current
       const colorStates = barColorStateRef.current
-      const [tr, tg, tb] = mood ? targetColor(mood.energyNorm, mood.centroidNorm) : [90, 90, 120]
+      const colorMode = colorModeRef.current
+      const intensityTarget = mood ? targetColor(mood.energyNorm, mood.centroidNorm) : [90, 90, 120]
 
       const bars = new Array(BAR_COUNT)
       for (let i = 0; i < BAR_COUNT; i++) {
@@ -140,6 +152,7 @@ export default function Visualizer({ engineRef, trackMeta }) {
         const v = smoothed[i]
         const barHeight = v * h * 0.9
 
+        const [tr, tg, tb] = colorMode === 'intensity' ? intensityTarget : frequencyColor(i / BAR_COUNT)
         const state = colorStates[i]
         state.r += (tr + state.jitter - state.r) * state.rate
         state.g += (tg + state.jitter * 0.6 - state.g) * state.rate
@@ -205,6 +218,16 @@ export default function Visualizer({ engineRef, trackMeta }) {
               key={mode.key}
               className={displayMode === mode.key ? 'active' : ''}
               onClick={() => setDisplayMode(mode.key)}
+            >
+              {mode.label}
+            </button>
+          ))}
+          <div className="settings-title">Color</div>
+          {COLOR_MODES.map((mode) => (
+            <button
+              key={mode.key}
+              className={colorMode === mode.key ? 'active' : ''}
+              onClick={() => setColorMode(mode.key)}
             >
               {mode.label}
             </button>
