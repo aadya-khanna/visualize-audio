@@ -51,16 +51,93 @@ html, body, #root {
   cursor: not-allowed;
 }
 
-.error {
-  position: fixed;
-  bottom: 1rem;
-  left: 1rem;
-  right: 1rem;
-  padding: 0.75rem;
-  background: #40151a;
-  border: 1px solid #802030;
-  border-radius: 8px;
+.panel-landing {
+  max-width: 480px;
+}
+
+.feature-list {
+  text-align: left;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+
+.feature-list li {
+  margin-bottom: 0.4rem;
+  padding-left: 1.1rem;
+  position: relative;
+}
+
+.feature-list li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+}
+
+.cta-primary {
+  font-weight: 600;
+}
+
+.mic-note {
+  font-size: 0.75rem;
+  opacity: 0.55;
+  text-align: left;
+  margin-top: 1rem;
+  margin-bottom: 0;
+}
+
+.panel .link-button {
+  display: inline;
+  width: auto;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 0;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.panel .back-link {
+  display: block;
+  text-align: left;
+  opacity: 0.6;
   font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.secondary-actions {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.btn-secondary {
+  opacity: 0.75;
+  font-size: 0.9rem;
+}
+
+.field-error {
+  color: #ff8a8a;
+  font-size: 0.8rem;
+  text-align: left;
+  margin: 0.5rem 0 0;
+}
+
+.status-note {
+  opacity: 0.6;
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
+}
+
+button:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid #5b8cff;
+  outline-offset: 2px;
 }
 
 .visualizer-wrap {

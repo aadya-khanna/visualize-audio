@@ -67,7 +67,7 @@ function logBarValue(freqData, barIndex) {
 // (bass -> red, treble -> violet); "intensity" shares one mood-derived target
 // (energy/centroid) across all bars. Either way bars ease toward their target
 // at their own fixed, gentle pace so color settles in smoothly, never snaps.
-export default function Visualizer({ engineRef, trackMeta }) {
+export default function Visualizer({ engineRef, trackMeta, accessToken, onSpotifyLogin, onSpotifyLogout }) {
   const canvasRef = useRef(null)
   const rafRef = useRef(null)
   const featuresRef = useRef({ energy: 0, spectralCentroid: 0, loudness: -60, mood: null })
@@ -232,6 +232,10 @@ export default function Visualizer({ engineRef, trackMeta }) {
               {mode.label}
             </button>
           ))}
+          <div className="settings-title">Spotify</div>
+          <button onClick={accessToken ? onSpotifyLogout : onSpotifyLogin}>
+            {accessToken ? 'Disconnect Spotify' : 'Connect Spotify'}
+          </button>
         </div>
       )}
     </div>
