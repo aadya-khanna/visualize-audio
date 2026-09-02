@@ -7,7 +7,12 @@ html, body, #root {
   margin: 0;
   background: #08080f;
   color: #eee;
-  font-family: system-ui, sans-serif;
+  font-family: 'General Sans', system-ui, sans-serif;
+}
+
+h1, h2, h3 {
+  font-family: 'Boska', Georgia, serif;
+  font-weight: 300;
 }
 
 .app {
@@ -24,7 +29,7 @@ html, body, #root {
 }
 
 .panel h1 {
-  font-weight: 600;
+  font-size: 2rem;
   margin-bottom: 0.5rem;
 }
 
@@ -138,6 +143,72 @@ select:focus-visible,
 a:focus-visible {
   outline: 2px solid #5b8cff;
   outline-offset: 2px;
+}
+
+.music-connect-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  text-align: left;
+  margin-bottom: 0.6rem;
+}
+
+.music-connect {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.settings-panel .music-connect {
+  justify-content: flex-start;
+  padding-top: 0.15rem;
+}
+
+.panel .music-icon-button,
+.settings-panel .music-icon-button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  margin-top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #eee;
+  font-size: 1rem;
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.music-icon-button svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.panel .music-icon-button:not(:disabled):hover,
+.settings-panel .music-icon-button:not(:disabled):hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.panel .music-icon-button.connected,
+.settings-panel .music-icon-button.connected {
+  opacity: 1;
+  border-color: #1ed760;
+  color: #1ed760;
+  background: rgba(30, 215, 96, 0.12);
+}
+
+.panel .music-icon-button:disabled,
+.settings-panel .music-icon-button:disabled {
+  opacity: 0.25;
+  cursor: default;
 }
 
 .visualizer-wrap {

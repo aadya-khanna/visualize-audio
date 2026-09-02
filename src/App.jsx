@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getAccessToken, login, logout, getCurrentlyPlaying } from './spotify'
 import { AudioEngine, listInputDevices } from './audioEngine'
 import Visualizer from './Visualizer'
+import MusicConnect from './MusicConnect'
 import './App.css'
 
 export default function App() {
@@ -163,9 +164,13 @@ export default function App() {
           </p>
 
           <div className="secondary-actions">
-            <button className="btn-secondary" onClick={handleSpotifyLogin} disabled={spotifyConnecting}>
-              {spotifyConnecting ? 'Connecting…' : 'Connect Spotify (optional)'}
-            </button>
+            <p className="music-connect-label">Connect for live music</p>
+            <MusicConnect
+              connected={!!accessToken}
+              connecting={spotifyConnecting}
+              onConnect={handleSpotifyLogin}
+              onDisconnect={handleSpotifyLogout}
+            />
             {spotifyError && (
               <p className="field-error" role="alert">
                 {spotifyError}

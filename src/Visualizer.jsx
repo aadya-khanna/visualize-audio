@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { frequencyColor, targetColor } from './mood.js'
 import { drawBarsNormal, drawBars8Bit, drawCurveArea } from './renderers.js'
+import MusicConnect from './MusicConnect'
 
 const DISPLAY_MODES = [
   { key: 'normal', label: 'Normal' },
@@ -232,10 +233,12 @@ export default function Visualizer({ engineRef, trackMeta, accessToken, onSpotif
               {mode.label}
             </button>
           ))}
-          <div className="settings-title">Spotify</div>
-          <button onClick={accessToken ? onSpotifyLogout : onSpotifyLogin}>
-            {accessToken ? 'Disconnect Spotify' : 'Connect Spotify'}
-          </button>
+          <div className="settings-title">Music</div>
+          <MusicConnect
+            connected={!!accessToken}
+            onConnect={onSpotifyLogin}
+            onDisconnect={onSpotifyLogout}
+          />
         </div>
       )}
     </div>
