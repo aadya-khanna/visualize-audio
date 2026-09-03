@@ -147,7 +147,7 @@ export default function App() {
           </p>
 
           <button className="cta-primary" onClick={quickStart} disabled={starting}>
-            {starting ? 'Starting…' : 'Start visualizer'}
+            {starting ? 'starting…' : 'start visualizer'}
           </button>
           {startError && (
             <p className="field-error" role="alert">
