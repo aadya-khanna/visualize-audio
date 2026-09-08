@@ -67,7 +67,8 @@ final class ProcessTap {
         guard ioStatus == noErr, let newProcID else { throw TapError.ioProcFailed(ioStatus) }
         ioProcID = newProcID
 
-        AudioDeviceStart(aggregateDeviceID, newProcID)
+        let startStatus = AudioDeviceStart(aggregateDeviceID, newProcID)
+        guard startStatus == noErr else { throw TapError.ioProcFailed(startStatus) }
         isRunning = true
     }
 

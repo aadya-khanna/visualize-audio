@@ -8,8 +8,23 @@ import Foundation
 // so BarLayout.swift's port of the bar-bucketing math sees the same shape of
 // data it did in the browser.
 
+// Raw vDSP FFT magnitudes are in an arbitrary internal scale tied to fftSize
+// and the window function — not real dBFS — so converting them to dB
+// requires dividing by a "zero reference" first (see Apple's
+// vDSP.convert(amplitude:toDecibels:zeroReference:)). Skipping that
+// reference and treating raw magnitude as if it were already dBFS was the
+// actual bug behind the "way too sensitive" visualizer: a full-scale
+// (amplitude 1.0) on-bin sine wave was reading as +30dB instead of ~0dBFS.
+//
+// fullScaleReferenceMagnitude is that missing reference: it's this exact
+// pipeline's measured linear-magnitude output for a full-scale on-bin sine
+// at fftSize=2048 with a normalized Hann window (see
+// scripts/fft_selftest.swift, which reproduces this file's math against a
+// synthetic tone). Re-run that script and update this constant if fftSize
+// or the window function ever changes.
+private let fullScaleReferenceMagnitude: Float = 34.37748
 private let minDecibels: Float = -100
-private let maxDecibels: Float = -30
+private let maxDecibels: Float = 0
 private let smoothingTimeConstant: Float = 0.8
 
 final class AudioAnalyser {
@@ -83,7 +98,8 @@ final class AudioAnalyser {
         }
 
         for i in 0..<frequencyBinCount {
-            let db = 20 * log10(max(smoothedMagnitudes[i], 1e-10))
+            let referenced = max(smoothedMagnitudes[i], 1e-10) / fullScaleReferenceMagnitude
+            let db = 20 * log10(referenced)
             let clamped = max(minDecibels, min(maxDecibels, db))
             let normalized = (clamped - minDecibels) / (maxDecibels - minDecibels)
             freqData[i] = normalized * 255

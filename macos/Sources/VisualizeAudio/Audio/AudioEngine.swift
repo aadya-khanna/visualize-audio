@@ -50,6 +50,7 @@ final class AudioEngine: ObservableObject {
         } catch {
             lastError = "\(error)"
             activeSource = nil
+            NSLog("VisualizeAudio: failed to start audio source \(source): \(error)")
         }
 
         featureTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in

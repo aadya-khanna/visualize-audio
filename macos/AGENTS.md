@@ -28,16 +28,39 @@ scripts) is a separate, untouched target; keep the two in sync only at the
 
 ## Guardrails
 
-- **This was written without access to the macOS 14.4 SDK** (the sandbox
-  building this only has Command Line Tools with SDK 14.2) — `ProcessTap.swift`
-  in particular (the `CATapDescription`/`AudioHardwareCreateProcessTap`/
-  aggregate-device sequence) has not been compiled or run. Treat it as a
-  first draft to validate against real API docs in Xcode 15.3+, not
-  verified-working code. `MediaRemoteBridge.swift`'s dlsym symbol names and
-  dictionary keys are the same ones widely relied on by existing open-source
-  "now playing" utilities, but are unofficial and could shift on a future OS
-  release — if now-playing info silently stops working after an OS update,
-  check those string constants first.
+- **Verified working** against Xcode 26.6 (macOS 26.5 SDK): the process tap,
+  aggregate device, IOProc, and `MediaRemote` bridge all build and run —
+  system audio capture and now-playing info both confirmed live. Two real
+  issues turned up in that process, both fixed and worth knowing about:
+  1. **A raw `swift build` executable can't get the system-audio-recording
+     TCC permission.** No Info.plist means no usage-description string, and
+     its ad-hoc code signature is a hash of the binary — a different
+     identity every rebuild — so TCC has nothing stable to prompt for or
+     remember a grant against. It doesn't error; it silently hands the tap
+     zeroed buffers instead, which looks exactly like "the tap works but
+     there's no audio." Fix: `scripts/build-app.sh` assembles a real `.app`
+     bundle (binds `Info.plist`, ad-hoc signs with a **stable**
+     `--identifier com.aadya.visualizeaudio`) — use it (or Xcode's own Run,
+     which does the equivalent) instead of running the bare SPM binary.
+     First launch of the bundle prompts for the permission; approve it once
+     and it persists across rebuilds because the identifier is now stable.
+  2. **Raw vDSP FFT magnitudes are an arbitrary internal scale, not dBFS** —
+     converting them to dB needs a "zero reference" divisor (see Apple's
+     `vDSP.convert(amplitude:toDecibels:zeroReference:)`); treating the raw
+     magnitude as if it were already calibrated dB made the visualizer
+     wildly over-sensitive (a full-scale test tone read as +30dB instead of
+     ~0dBFS). `FFT.swift`'s `fullScaleReferenceMagnitude` constant is that
+     reference, empirically measured via `scripts/fft_selftest.swift`
+     (which reproduces this file's exact FFT pipeline against a synthetic
+     full-scale tone) — re-run that script and update the constant if
+     `fftSize` or the window function ever changes.
+  Still genuinely unverified: `ProcessTap.swift` hardcodes the sample rate
+  passed downstream as `48000` instead of reading the tapped device's actual
+  nominal rate (marked with a `// TODO`) — if the real device differs, every
+  bar's frequency label is scaled off proportionally. `MediaRemoteBridge.swift`'s
+  dlsym symbol names and dictionary keys are the same ones widely relied on
+  by existing open-source "now playing" utilities, but are unofficial and
+  could shift on a future OS release.
 - **Private APIs mean no App Store distribution** — same tradeoff Isle
   documents in its own README. Distribute as a signed-but-not-notarized (or
   self-signed) build; users may need the `xattr -dr com.apple.quarantine`
@@ -48,13 +71,9 @@ scripts) is a separate, untouched target; keep the two in sync only at the
   a real feature loss to flag, not a checkbox to just turn on.
 - **This is a Swift Package (`Package.swift`), not a hand-built `.xcodeproj`.**
   Open `macos/Package.swift` directly in Xcode ("File > Open…") — Xcode
-  treats it as a project. `Info.plist` at `macos/Info.plist` documents the
-  required keys (`NSMicrophoneUsageDescription`,
-  `NSAudioCaptureUsageDescription`, min system version 14.4); wire it into
-  the target's build settings (`INFOPLIST_FILE`) or copy its keys into
-  whatever Info.plist Xcode generates for the target — a bare `swift build`
-  will compile the code but won't produce a real signed `.app` with TCC
-  permissions working correctly.
+  treats it as a project, and its own Run/Debug handles bundling and signing
+  for you. From the command line, always use `scripts/build-app.sh` (not a
+  bare `swift build`) — see guardrail 1 above for why.
 - Keep the algorithms in `Visualizer/` and `Audio/FeatureExtractor.swift`
   numerically in sync with `src/mood.js`, `src/Visualizer.jsx`, and
   `src/audioEngine.js` — the whole point of "two-way" is that both targets
@@ -67,13 +86,19 @@ No CI here — this needs Xcode (15.3+, macOS 14.4 SDK) to build and a real
 macOS 14.4+ Mac to run, since neither the process tap nor MediaRemote can be
 exercised from the command line alone:
 
-1. Open `macos/Package.swift` in Xcode, resolve/build, run.
+1. `./scripts/build-app.sh && open .build/VisualizeAudio.app` (or Xcode's
+   Run). First launch prompts for the system-audio-recording permission —
+   approve it.
 2. Compare each display mode (Normal/8-Bit/Curve) and color mode
    (Frequency/Intensity) against the web app side by side.
 3. Play audio from an arbitrary app (not just Spotify) with **no** loopback
-   device installed — bars should react. This is the actual fix for the old
-   Electron glitch.
+   device installed — bars should react with real dynamic range (quiet
+   passages low, transients tall, not everything pinned near max). This is
+   the actual fix for the old Electron glitch.
 4. Switch to the microphone source in Settings and confirm that path still
    works.
 5. Play/pause/change tracks in Spotify (or Music, or Safari) while the app
    is running — the track overlay should update with no connect/login step.
+6. If `fftSize` or the window function in `FFT.swift` ever changes, re-run
+   `swift scripts/fft_selftest.swift` and update `fullScaleReferenceMagnitude`
+   from its output.

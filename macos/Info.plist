@@ -8,6 +8,8 @@
 	<string>Visualize Audio</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.aadya.visualizeaudio</string>
+	<key>CFBundleExecutable</key>
+	<string>VisualizeAudio</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
