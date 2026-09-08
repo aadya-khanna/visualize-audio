@@ -6,8 +6,11 @@ Web Audio and Essentia.js (`audioEngine.js`), color/mood logic (`mood.js`), canv
 
 ## Guardrails
 
-- Token storage is `localStorage` by design (Electron needs login to persist across restarts) —
-  don't revert to `sessionStorage`.
+- Token storage is `localStorage` by design (persists login across restarts, e.g. when this
+  runs inside a wrapped/reopened window) — don't revert to `sessionStorage`.
+- This is the browser build only. The macOS app (`macos/`) is a separate, natively reimplemented
+  target — Spotify auth and audio capture here have no equivalent code path there; keep the two
+  in sync only at the algorithm level (see `macos/AGENTS.md`).
 - No Spotify client secret anywhere — auth is Authorization Code + PKCE, client-side only.
 - Keep `renderers.js` functions pure: `(ctx, dims, bars, ...) -> draws`. Display modes must stay
   swappable without touching the audio/color pipeline upstream.
@@ -16,4 +19,4 @@ Web Audio and Essentia.js (`audioEngine.js`), color/mood logic (`mood.js`), canv
 ## Validation
 
 `npm run build` must pass cleanly. There's no test suite — audio capture and visual rendering
-need to be manually verified in a browser (or the Electron app) after any change here.
+need to be manually verified in a browser after any change here.

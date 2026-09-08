@@ -1,8 +1,14 @@
 # visualize-audio
 
-A live audio visualizer that reacts to real sound (via loopback capture + Essentia.js feature
-extraction). Optionally shows what's currently playing on Spotify alongside it. Runs as a web
-app or a desktop app via Electron.
+A live audio visualizer that reacts to real sound. Optionally shows what's currently playing on
+Spotify alongside it. Two independent ways to run it:
+
+- **Web app** — React/Canvas, loopback/mic capture + Essentia.js feature extraction, Spotify via
+  OAuth. Works in any browser.
+- **macOS app** — native Swift/SwiftUI (`macos/`), a from-scratch reimplementation (not an
+  Electron/WebView wrapper) that taps system audio directly via a Core Audio process tap (no
+  loopback device needed) and gets Spotify now-playing info automatically via the private
+  `MediaRemote` framework (no login step). Replaces the old Electron build entirely.
 
 Spotify is entirely optional — the "Start visualizer" button on the landing screen works with
 your default microphone out of the box, with no Spotify setup required. Connect Spotify (from
@@ -22,30 +28,39 @@ track name/art overlay.
    `http://127.0.0.1:5173/`, copy the Client ID, `cp .env.example .env` and set
    `VITE_SPOTIFY_CLIENT_ID`. Then use "Connect Spotify" in the app.
 
-## Getting started — desktop app (Electron)
+## Getting started — macOS app (native Swift)
 
 ```
-npm run electron
+open macos/Package.swift   # opens as a project in Xcode
 ```
 
-This builds the app and opens it in a native window. No separate packaging step yet — this
-runs from source via `npx electron .`. Same optional Spotify `.env` setup as above (the desktop
-app reuses the exact same redirect URI) if you want the track overlay.
+Requires Xcode 15.3+ (macOS 14.4 SDK) and macOS 14.4+ to build and run — the process tap and
+`MediaRemote` APIs it depends on don't exist on older systems, and there is no command-line-only
+build path for this target. No Spotify setup needed: now-playing info comes from the system
+automatically (works with Spotify, Music, or anything else playing), and system audio is
+captured directly with no virtual loopback device required. See `macos/AGENTS.md` for
+architecture notes and validation steps.
 
-## Spotify user limitation
+Because it uses private macOS APIs (the process tap and `MediaRemote`), this can't ship on the
+App Store — same tradeoff as similar "now playing" utilities. A self-built or ad-hoc-signed
+copy may need the quarantine flag cleared before macOS will open it:
+```
+xattr -dr com.apple.quarantine /path/to/VisualizeAudio.app
+```
 
-The app is registered in Spotify's **Development Mode**, capped at 25 users total, added
-manually by email in the Spotify dashboard. Going beyond that requires Spotify's Extended Quota
-Mode review process — not set up here. This only limits the optional track-overlay feature; the
-visualizer itself has no such cap.
+## Spotify user limitation (web app only)
+
+The web app's Spotify integration is registered in Spotify's **Development Mode**, capped at 25
+users total, added manually by email in the Spotify dashboard. Going beyond that requires
+Spotify's Extended Quota Mode review process — not set up here. This only limits the optional
+track-overlay feature; the visualizer itself has no such cap. The macOS app has no such
+limitation, since it doesn't use Spotify's OAuth API at all.
 
 ## Known issues
 
-- **Electron + virtual audio device causes a ~15s glitch on connect.** The first time the app
-  opens a stream to a loopback device (Background Music/BlackHole) inside the Electron build,
-  CoreAudio renegotiates that device's format, briefly glitching anything already playing
-  through it. It self-resolves after ~15 seconds. Not present in the web app (regular Chrome
-  handles this negotiation more gracefully than Electron's bundled Chromium). Workaround: start
-  the visualizer *before* starting playback, so the glitch happens on silence.
+- **Web app + virtual loopback device can cause a CoreAudio renegotiation glitch on connect**
+  in some browsers/setups. Workaround: start the visualizer *before* starting playback, so any
+  glitch happens on silence. Not applicable to the macOS app — it doesn't use a loopback device.
 - Bluetooth output devices can add their own latency/dropout issues when combined with a
-  loopback device — wired output is more reliable if you hit stutter unrelated to the above.
+  loopback device (web app only) — wired output is more reliable if you hit stutter unrelated
+  to the above.

@@ -13,6 +13,12 @@ dist-ssr
 *.local
 .env
 
+# Swift/Xcode build artifacts
+.build
+*.xcodeproj/xcuserdata
+*.xcodeproj/project.xcworkspace/xcuserdata
+DerivedData
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
