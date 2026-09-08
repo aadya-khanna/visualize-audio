@@ -10,10 +10,10 @@ import Foundation
 //
 // Pattern follows Apple's WWDC23 "Meet Core Audio taps" session and the
 // open-source AudioCap reference project (github.com/insidegui/AudioCap).
-// This requires the macOS 14.4 SDK (Xcode 15.3+) — the sandbox this was
-// written in only has Command Line Tools with the 14.2 SDK, so this file has
-// NOT been compiled or run. Treat it as a first draft to validate in Xcode;
-// see macos/AGENTS.md.
+// Requires the macOS 14.4 SDK (Xcode 15.3+). Verified working against Xcode
+// 26.6 — see macos/AGENTS.md for the two real issues that turned up in that
+// process (TCC permission bundling, FFT dB scaling) and how they were fixed.
+// Run via scripts/build-app.sh, not a bare `swift build` — see AGENTS.md.
 final class ProcessTap {
     enum TapError: Error {
         case tapCreationFailed(OSStatus)
@@ -25,6 +25,7 @@ final class ProcessTap {
     private var aggregateDeviceID: AudioObjectID = .unknown
     private var ioProcID: AudioDeviceIOProcID?
     private(set) var isRunning = false
+    private var sampleRate: Double = 48000
 
     /// Called on a real-time audio thread with de-interleaved mono samples
     /// (first channel only — the visualizer only needs level/spectrum, not
@@ -60,6 +61,8 @@ final class ProcessTap {
         guard aggregateStatus == noErr else { throw TapError.aggregateDeviceCreationFailed(aggregateStatus) }
         aggregateDeviceID = newAggregateID
 
+        sampleRate = Self.nominalSampleRate(of: aggregateDeviceID) ?? sampleRate
+
         var newProcID: AudioDeviceIOProcID?
         let ioStatus = AudioDeviceCreateIOProcIDWithBlock(&newProcID, aggregateDeviceID, nil) { [weak self] _, inputData, _, _, _ in
             self?.handle(inputData)
@@ -88,6 +91,7 @@ final class ProcessTap {
         tapID = .unknown
         aggregateDeviceID = .unknown
         ioProcID = nil
+        sampleRate = 48000
     }
 
     // Real-time audio thread. Allocating here (Array(...)) isn't strictly
@@ -99,10 +103,22 @@ final class ProcessTap {
         let frameCount = Int(buffer.mDataByteSize) / MemoryLayout<Float>.size
         guard frameCount > 0 else { return }
         let samples = UnsafeBufferPointer<Float>(start: data.assumingMemoryBound(to: Float.self), count: frameCount)
-        onAudio?(Array(samples), 48000) // TODO: read the aggregate device's actual nominal sample rate
+        onAudio?(Array(samples), sampleRate)
     }
 
     deinit { stop() }
+
+    private static func nominalSampleRate(of deviceID: AudioObjectID) -> Double? {
+        var rate: Float64 = 0
+        var propertySize = UInt32(MemoryLayout<Float64>.size)
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyNominalSampleRate,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &propertySize, &rate)
+        return status == noErr && rate > 0 ? rate : nil
+    }
 }
 
 extension AudioObjectID {
