@@ -27,16 +27,25 @@ final class ProcessTap {
     private(set) var isRunning = false
     private var sampleRate: Double = 48000
 
-    /// Called on a real-time audio thread with de-interleaved mono samples
-    /// (first channel only — the visualizer only needs level/spectrum, not
-    /// stereo separation) and the device's sample rate.
+    /// Called on a real-time audio thread with mono samples (CoreAudio mixes
+    /// down to mono itself, per the mono tap description below — the
+    /// visualizer only needs level/spectrum, not stereo separation) and the
+    /// device's sample rate.
     var onAudio: (([Float], Double) -> Void)?
 
     /// Sets up a system-wide tap (excludes no processes, i.e. captures
     /// everything currently playing) wrapped in a private aggregate device so
     /// we can register an IO proc and pull buffers out of it.
     func start() throws {
-        let tapDescription = CATapDescription(stereoGlobalTapButExcludeProcesses: [])
+        // Mono, not stereo: handle() reads the IOProc buffer as one sequence
+        // of samples. A stereo tap delivers interleaved [L0,R0,L1,R1,...]
+        // floats — reading that as if it were mono treats each L/R pair as
+        // two separate time samples, which measures every frequency at half
+        // its true value for any content correlated across channels. Found
+        // by playing known test tones (1-23kHz) through the old stereo tap:
+        // every one measured at almost exactly half its true frequency
+        // (5kHz->2.5kHz, 20kHz->10kHz, etc — see macos/AGENTS.md).
+        let tapDescription = CATapDescription(monoGlobalTapButExcludeProcesses: [])
         tapDescription.name = "VisualizeAudio System Tap"
         tapDescription.isPrivate = true
         tapDescription.muteBehavior = .unmuted
