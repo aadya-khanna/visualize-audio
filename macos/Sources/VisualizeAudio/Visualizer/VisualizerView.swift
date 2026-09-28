@@ -51,7 +51,9 @@ struct VisualizerView: View {
 
             if let nowPlaying = mediaRemote.nowPlaying {
                 trackOverlay(nowPlaying)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .padding(16)
+                    .allowsHitTesting(false)
             }
 
             VStack(alignment: .trailing, spacing: 8) {
@@ -92,20 +94,18 @@ struct VisualizerView: View {
 
     private func trackOverlay(_ nowPlaying: NowPlaying) -> some View {
         HStack(spacing: 10) {
-            if let artwork = nowPlaying.artwork {
-                Image(nsImage: artwork)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 48, height: 48)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-            }
+            NowPlayingArtwork(artwork: nowPlaying.artwork, size: 52)
             VStack(alignment: .leading, spacing: 2) {
-                Text(nowPlaying.title ?? "")
+                Text(nowPlaying.title ?? nowPlaying.album ?? "Unknown track")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.white)
-                Text(nowPlaying.artist ?? "")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.7))
+                    .lineLimit(2)
+                if let artist = nowPlaying.artist, !artist.isEmpty {
+                    Text(artist)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.7))
+                        .lineLimit(1)
+                }
             }
         }
         .padding(10)
@@ -119,17 +119,54 @@ struct VisualizerView: View {
 final class MediaRemoteBridgeStore: ObservableObject {
     @Published private(set) var nowPlaying: NowPlaying?
     private let bridge = MediaRemoteBridge()
+    private let artworkResolver = ArtworkResolver()
+    private var artworkTask: Task<Void, Never>?
 
     func start() {
         bridge.onNowPlayingChange = { [weak self] nowPlaying in
             DispatchQueue.main.async {
-                self?.nowPlaying = nowPlaying
+                self?.handleNowPlaying(nowPlaying)
             }
         }
         bridge.start()
     }
 
     func stop() {
+        artworkTask?.cancel()
+        artworkTask = nil
         bridge.stop()
+    }
+
+    private func handleNowPlaying(_ incoming: NowPlaying?) {
+        artworkTask?.cancel()
+
+        guard var incoming else {
+            nowPlaying = nil
+            return
+        }
+
+        if let current = nowPlaying,
+           current.trackIdentity == incoming.trackIdentity,
+           incoming.artwork == nil {
+            incoming.artwork = current.artwork
+        }
+
+        nowPlaying = incoming
+        resolveArtwork(for: incoming)
+    }
+
+    private func resolveArtwork(for item: NowPlaying) {
+        guard item.artwork == nil else { return }
+
+        artworkTask = Task {
+            guard let artwork = await artworkResolver.resolve(for: item) else { return }
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard nowPlaying?.trackIdentity == item.trackIdentity else { return }
+                var updated = nowPlaying!
+                updated.artwork = artwork
+                nowPlaying = updated
+            }
+        }
     }
 }

@@ -79,11 +79,14 @@ final class MediaRemoteBridge {
             var value = info.objectForKey(key);
             return value ? value.doubleValue : 0;
         }
+        var client = MRNowPlayingRequest.localNowPlayingPlayerPath.client;
+        var bundleId = client && client.bundleIdentifier ? String(client.bundleIdentifier.js) : '';
         return [
             text('kMRMediaRemoteNowPlayingInfoTitle'),
             text('kMRMediaRemoteNowPlayingInfoArtist'),
             text('kMRMediaRemoteNowPlayingInfoAlbum'),
-            rate('kMRMediaRemoteNowPlayingInfoPlaybackRate')
+            rate('kMRMediaRemoteNowPlayingInfoPlaybackRate'),
+            bundleId
         ].join('\\t');
     }
     """
@@ -210,13 +213,15 @@ final class MediaRemoteBridge {
         let artist = parts[1].isEmpty ? nil : parts[1]
         let album = parts[2].isEmpty ? nil : parts[2]
         let rate = Double(parts[3]) ?? 0
+        let bundleIdentifier = parts.count >= 5 && !parts[4].isEmpty ? parts[4] : nil
         guard title != nil || artist != nil || album != nil else { return nil }
 
         return NowPlaying(
             title: title,
             artist: artist,
             album: album,
-            isPlaying: rate > 0
+            isPlaying: rate > 0,
+            bundleIdentifier: bundleIdentifier
         )
     }
 

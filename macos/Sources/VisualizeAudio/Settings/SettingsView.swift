@@ -33,17 +33,14 @@ struct SettingsView: View {
     }
 
     private var musicStatusRow: some View {
-        HStack(alignment: .top, spacing: 6) {
-            Circle()
-                .fill(nowPlaying != nil ? Color.green : Color.gray)
-                .frame(width: 8, height: 8)
-                .padding(.top, 3)
-            VStack(alignment: .leading, spacing: 2) {
-                if let nowPlaying {
+        HStack(alignment: .top, spacing: 8) {
+            if let nowPlaying {
+                NowPlayingArtwork(artwork: nowPlaying.artwork, size: 36)
+                VStack(alignment: .leading, spacing: 2) {
                     Text(nowPlaying.title ?? nowPlaying.album ?? "Unknown track")
                         .font(.caption)
                         .lineLimit(2)
-                    if let artist = nowPlaying.artist {
+                    if let artist = nowPlaying.artist, !artist.isEmpty {
                         Text(artist)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -52,11 +49,13 @@ struct SettingsView: View {
                     Text(nowPlaying.isPlaying ? "Playing" : "Paused")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                } else {
-                    Text("Nothing playing")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
+            } else {
+                NowPlayingArtwork(artwork: nil, size: 36)
+                Text("Nothing playing")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 10)
             }
         }
     }
