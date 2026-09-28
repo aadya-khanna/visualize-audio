@@ -8,7 +8,7 @@ struct SettingsView: View {
     @Binding var colorMode: ColorMode
     @Binding var audioSource: AudioSource
     let availableMicDevices: [MicInputSource.Device]
-    let nowPlayingDetected: Bool
+    let nowPlaying: NowPlaying?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -24,19 +24,41 @@ struct SettingsView: View {
             audioSourceRow
 
             sectionTitle("Music")
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(nowPlayingDetected ? Color.green : Color.gray)
-                    .frame(width: 8, height: 8)
-                Text(nowPlayingDetected ? "Now playing detected" : "Nothing playing")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            musicStatusRow
         }
         .padding(16)
-        .frame(width: 220)
+        .frame(width: 240)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var musicStatusRow: some View {
+        HStack(alignment: .top, spacing: 6) {
+            Circle()
+                .fill(nowPlaying != nil ? Color.green : Color.gray)
+                .frame(width: 8, height: 8)
+                .padding(.top, 3)
+            VStack(alignment: .leading, spacing: 2) {
+                if let nowPlaying {
+                    Text(nowPlaying.title ?? nowPlaying.album ?? "Unknown track")
+                        .font(.caption)
+                        .lineLimit(2)
+                    if let artist = nowPlaying.artist {
+                        Text(artist)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Text(nowPlaying.isPlaying ? "Playing" : "Paused")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Nothing playing")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 
     private func sectionTitle(_ text: String) -> some View {

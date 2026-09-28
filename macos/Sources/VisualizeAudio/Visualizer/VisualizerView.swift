@@ -70,7 +70,7 @@ struct VisualizerView: View {
                         colorMode: $colorMode,
                         audioSource: $audioSource,
                         availableMicDevices: availableMicDevices,
-                        nowPlayingDetected: mediaRemote.nowPlaying != nil
+                        nowPlaying: mediaRemote.nowPlaying
                     )
                 }
             }
@@ -122,7 +122,9 @@ final class MediaRemoteBridgeStore: ObservableObject {
 
     func start() {
         bridge.onNowPlayingChange = { [weak self] nowPlaying in
-            self?.nowPlaying = nowPlaying
+            DispatchQueue.main.async {
+                self?.nowPlaying = nowPlaying
+            }
         }
         bridge.start()
     }

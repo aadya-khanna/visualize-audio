@@ -1,64 +1,144 @@
 import Foundation
 
-// Reads now-playing metadata from the system: no OAuth/PKCE, no
-// developer-dashboard registration, no 25-user cap, no login step. Instead
-// this loads the private MediaRemote framework via dlopen/dlsym — the same
-// technique Isle (github.com/matthewhamilton3141/isle) and other third-party
-// "now playing" menu-bar utilities use, since Apple provides no public API
-// for system-wide now-playing info. This is *system-wide* (whatever app is
-// playing — Spotify, Music, Safari, ...), not Spotify-specific, matching how
-// Isle itself works.
-//
-// Private-API caveat (document prominently — see macos/AGENTS.md): this
-// rules out App Store distribution, same as Isle. Symbol/key names below are
-// stable across recent macOS versions in practice (widely relied on by
-// existing open-source "now playing" tools) but are not an Apple-documented
-// contract and could change in a future OS release.
+// Reads now-playing metadata from the system via the private MediaRemote framework
+// (dlopen/dlsym). On macOS 15.4+ the direct MRMediaRemoteGetNowPlayingInfo call
+// is often entitlement-gated and returns empty — we fall back to MRNowPlayingRequest
+// through osascript/JXA in that case, and poll periodically because push
+// notifications alone are unreliable across OS versions.
 final class MediaRemoteBridge {
+    struct InfoKeys {
+        let title: String
+        let artist: String
+        let album: String
+        let artworkData: String
+        let playbackRate: String
+
+        static let defaults = InfoKeys(
+            title: "kMRMediaRemoteNowPlayingInfoTitle",
+            artist: "kMRMediaRemoteNowPlayingInfoArtist",
+            album: "kMRMediaRemoteNowPlayingInfoAlbum",
+            artworkData: "kMRMediaRemoteNowPlayingInfoArtworkData",
+            playbackRate: "kMRMediaRemoteNowPlayingInfoPlaybackRate"
+        )
+
+        init(
+            title: String,
+            artist: String,
+            album: String,
+            artworkData: String,
+            playbackRate: String
+        ) {
+            self.title = title
+            self.artist = artist
+            self.album = album
+            self.artworkData = artworkData
+            self.playbackRate = playbackRate
+        }
+
+        init(handle: UnsafeMutableRawPointer) {
+            func key(_ symbol: String, fallback: String) -> String {
+                guard let ptr = dlsym(handle, symbol) else { return fallback }
+                return ptr.assumingMemoryBound(to: CFString.self).pointee as String
+            }
+            self.init(
+                title: key("kMRMediaRemoteNowPlayingInfoTitle", fallback: Self.defaults.title),
+                artist: key("kMRMediaRemoteNowPlayingInfoArtist", fallback: Self.defaults.artist),
+                album: key("kMRMediaRemoteNowPlayingInfoAlbum", fallback: Self.defaults.album),
+                artworkData: key("kMRMediaRemoteNowPlayingInfoArtworkData", fallback: Self.defaults.artworkData),
+                playbackRate: key("kMRMediaRemoteNowPlayingInfoPlaybackRate", fallback: Self.defaults.playbackRate)
+            )
+        }
+    }
+
     private typealias GetNowPlayingInfoFunction = @convention(c) (DispatchQueue, @escaping (NSDictionary) -> Void) -> Void
     private typealias RegisterForNotificationsFunction = @convention(c) (DispatchQueue) -> Void
 
     private static let frameworkPath = "/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote"
-    private static let nowPlayingChangedNotification = Notification.Name("kMRMediaRemoteNowPlayingInfoDidChangeNotification")
+    private static let pollInterval: TimeInterval = 2
+    private static let notificationSymbols = [
+        "kMRMediaRemoteNowPlayingInfoDidChangeNotification",
+        "kMRMediaRemoteNowPlayingApplicationDidChangeNotification",
+        "kMRMediaRemoteNowPlayingApplicationIsPlayingDidChangeNotification",
+    ]
+    private static let jxaScript = """
+    function run() {
+        var bundle = $.NSBundle.bundleWithPath('/System/Library/PrivateFrameworks/MediaRemote.framework/');
+        if (!bundle) return '';
+        bundle.load;
+        var MRNowPlayingRequest = $.NSClassFromString('MRNowPlayingRequest');
+        if (!MRNowPlayingRequest) return '';
+        var item = MRNowPlayingRequest.localNowPlayingItem;
+        if (!item) return '';
+        var info = item.nowPlayingInfo;
+        if (!info) return '';
+        function text(key) {
+            var value = info.objectForKey(key);
+            return value ? String(value.js) : '';
+        }
+        function rate(key) {
+            var value = info.objectForKey(key);
+            return value ? value.doubleValue : 0;
+        }
+        return [
+            text('kMRMediaRemoteNowPlayingInfoTitle'),
+            text('kMRMediaRemoteNowPlayingInfoArtist'),
+            text('kMRMediaRemoteNowPlayingInfoAlbum'),
+            rate('kMRMediaRemoteNowPlayingInfoPlaybackRate')
+        ].join('\\t');
+    }
+    """
 
     private var handle: UnsafeMutableRawPointer?
     private var getNowPlayingInfo: GetNowPlayingInfoFunction?
+    private var infoKeys = InfoKeys.defaults
+    private var observedNotifications: [Notification.Name] = []
+    private var pollTimer: Timer?
 
     /// Fires on the main queue whenever now-playing info changes, `nil` when
     /// nothing is playing / detected.
     var onNowPlayingChange: ((NowPlaying?) -> Void)?
 
     func start() {
-        guard let handle = dlopen(Self.frameworkPath, RTLD_NOW) else {
-            NSLog("VisualizeAudio: could not load MediaRemote — now-playing overlay will stay empty")
-            return
+        if let handle = dlopen(Self.frameworkPath, RTLD_NOW) {
+            self.handle = handle
+            infoKeys = InfoKeys(handle: handle)
+
+            if let getInfoSymbol = dlsym(handle, "MRMediaRemoteGetNowPlayingInfo") {
+                getNowPlayingInfo = unsafeBitCast(getInfoSymbol, to: GetNowPlayingInfoFunction.self)
+            }
+            if let registerSymbol = dlsym(handle, "MRMediaRemoteRegisterForNowPlayingNotifications") {
+                let registerForNotifications = unsafeBitCast(registerSymbol, to: RegisterForNotificationsFunction.self)
+                registerForNotifications(DispatchQueue.main)
+            }
+
+            for symbol in Self.notificationSymbols {
+                guard let ptr = dlsym(handle, symbol) else { continue }
+                let name = Notification.Name(ptr.assumingMemoryBound(to: CFString.self).pointee as String)
+                observedNotifications.append(name)
+                NotificationCenter.default.addObserver(
+                    self,
+                    selector: #selector(nowPlayingInfoDidChange),
+                    name: name,
+                    object: nil
+                )
+            }
+        } else {
+            NSLog("VisualizeAudio: could not load MediaRemote — falling back to JXA polling")
         }
-        self.handle = handle
 
-        guard
-            let getInfoSymbol = dlsym(handle, "MRMediaRemoteGetNowPlayingInfo"),
-            let registerSymbol = dlsym(handle, "MRMediaRemoteRegisterForNowPlayingNotifications")
-        else {
-            NSLog("VisualizeAudio: MediaRemote symbols not found — OS version may have changed the private API")
-            return
+        pollTimer = Timer.scheduledTimer(withTimeInterval: Self.pollInterval, repeats: true) { [weak self] _ in
+            self?.refresh()
         }
-
-        getNowPlayingInfo = unsafeBitCast(getInfoSymbol, to: GetNowPlayingInfoFunction.self)
-        let registerForNotifications = unsafeBitCast(registerSymbol, to: RegisterForNotificationsFunction.self)
-        registerForNotifications(DispatchQueue.main)
-
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(nowPlayingInfoDidChange),
-            name: Self.nowPlayingChangedNotification,
-            object: nil
-        )
-
         refresh()
     }
 
     func stop() {
-        NotificationCenter.default.removeObserver(self, name: Self.nowPlayingChangedNotification, object: nil)
+        pollTimer?.invalidate()
+        pollTimer = nil
+        for name in observedNotifications {
+            NotificationCenter.default.removeObserver(self, name: name, object: nil)
+        }
+        observedNotifications.removeAll()
         if let handle {
             dlclose(handle)
         }
@@ -71,9 +151,73 @@ final class MediaRemoteBridge {
     }
 
     private func refresh() {
-        getNowPlayingInfo?(DispatchQueue.main) { [weak self] info in
-            self?.onNowPlayingChange?(NowPlaying(info: info))
+        guard let getNowPlayingInfo else {
+            refreshViaJXA()
+            return
         }
+
+        getNowPlayingInfo(DispatchQueue.main) { [weak self] info in
+            guard let self else { return }
+            if let nowPlaying = NowPlaying(info: info, keys: self.infoKeys) {
+                self.deliver(nowPlaying)
+            } else {
+                self.refreshViaJXA()
+            }
+        }
+    }
+
+    private func refreshViaJXA() {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let nowPlaying = self?.fetchViaJXA()
+            DispatchQueue.main.async {
+                self?.deliver(nowPlaying)
+            }
+        }
+    }
+
+    private func deliver(_ nowPlaying: NowPlaying?) {
+        onNowPlayingChange?(nowPlaying)
+    }
+
+    /// MRNowPlayingRequest via JXA still works on macOS 15.4+ when the direct
+    /// MRMediaRemoteGetNowPlayingInfo callback is entitlement-gated.
+    private func fetchViaJXA() -> NowPlaying? {
+        let process = Process()
+        let pipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-l", "JavaScript", "-e", Self.jxaScript]
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+
+        do {
+            try process.run()
+        } catch {
+            return nil
+        }
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else { return nil }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let line = String(data: data, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !line.isEmpty
+        else { return nil }
+
+        let parts = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
+        guard parts.count >= 4 else { return nil }
+
+        let title = parts[0].isEmpty ? nil : parts[0]
+        let artist = parts[1].isEmpty ? nil : parts[1]
+        let album = parts[2].isEmpty ? nil : parts[2]
+        let rate = Double(parts[3]) ?? 0
+        guard title != nil || artist != nil || album != nil else { return nil }
+
+        return NowPlaying(
+            title: title,
+            artist: artist,
+            album: album,
+            isPlaying: rate > 0
+        )
     }
 
     deinit { stop() }
