@@ -24,7 +24,7 @@ cd macos && ./scripts/build-app.sh && open .build/VisualizeAudio.app
 tap and `MediaRemote` APIs it depends on don't exist on older systems.
 
 **First launch:** macOS prompts for the system-audio-recording permission (needed for the
-process tap). Approve it once — the stable bundle identifier (`com.aadya.visualizeaudio`) lets
+process tap). Approve it once — the stable bundle identifier lets
 TCC remember the grant across rebuilds. Always run the `.app` bundle (via Xcode Run or
 `build-app.sh`), not a bare `swift build` executable — see `AGENTS.md` for why.
 
@@ -40,7 +40,9 @@ xattr -dr com.apple.quarantine /path/to/VisualizeAudio.app
 
 - System-wide audio capture (process tap) or microphone input (selectable in Settings)
 - Three display modes: Normal bars, 8-Bit, Curve
-- Two color modes: Frequency (spectrum-position hues) and Intensity (mood-driven)
+- Three color modes: Frequency (spectrum-position hues), Intensity (mood-driven),
+  and Album (each bar takes one of the current cover's own colors, drifting
+  slowly in hue and pulsing lighter and darker with the music)
 - Automatic now-playing overlay — works with Spotify, Music, Safari, and other apps
 - Mood-aware color mapping from energy, spectral centroid, and loudness
 

@@ -19,7 +19,7 @@ struct VisualizerView: View {
         ZStack(alignment: .topTrailing) {
             Color(red: 8 / 255, green: 8 / 255, blue: 16 / 255).ignoresSafeArea()
 
-            TimelineView(.animation) { _ in
+            TimelineView(.animation) { timeline in
                 Canvas { context, size in
                     // Fade trail instead of hard clear — reads as "mood" smoothing.
                     context.fill(
@@ -34,6 +34,8 @@ struct VisualizerView: View {
                         freqData: audioEngine.freqData,
                         mood: audioEngine.features.mood,
                         colorMode: colorMode,
+                        albumPalette: mediaRemote.albumPalette,
+                        time: timeline.date.timeIntervalSinceReferenceDate,
                         width: width,
                         height: height
                     )
@@ -117,9 +119,12 @@ struct VisualizerView: View {
 /// SwiftUI-observable state.
 final class MediaRemoteBridgeStore: ObservableObject {
     @Published private(set) var nowPlaying: NowPlaying?
+    @Published private(set) var albumPalette: AlbumPalette?
     private let bridge = MediaRemoteBridge()
     private let artworkResolver = ArtworkResolver()
+    private let paletteExtractor = AlbumPaletteExtractor()
     private var artworkTask: Task<Void, Never>?
+    private var paletteTask: Task<Void, Never>?
 
     func start() {
         bridge.onNowPlayingChange = { [weak self] nowPlaying in
@@ -133,14 +138,18 @@ final class MediaRemoteBridgeStore: ObservableObject {
     func stop() {
         artworkTask?.cancel()
         artworkTask = nil
+        paletteTask?.cancel()
+        paletteTask = nil
         bridge.stop()
     }
 
     private func handleNowPlaying(_ incoming: NowPlaying?) {
         artworkTask?.cancel()
+        paletteTask?.cancel()
 
         guard var incoming else {
             nowPlaying = nil
+            albumPalette = nil
             return
         }
 
@@ -150,8 +159,15 @@ final class MediaRemoteBridgeStore: ObservableObject {
             incoming.artwork = current.artwork
         }
 
+        if nowPlaying?.trackIdentity != incoming.trackIdentity {
+            albumPalette = nil
+        }
+
         nowPlaying = incoming
         resolveArtwork(for: incoming)
+        if incoming.artwork != nil {
+            resolvePalette(for: incoming)
+        }
     }
 
     private func resolveArtwork(for item: NowPlaying) {
@@ -165,6 +181,19 @@ final class MediaRemoteBridgeStore: ObservableObject {
                 var updated = nowPlaying!
                 updated.artwork = artwork
                 nowPlaying = updated
+                resolvePalette(for: updated)
+            }
+        }
+    }
+
+    private func resolvePalette(for item: NowPlaying) {
+        paletteTask?.cancel()
+        paletteTask = Task {
+            guard let palette = await paletteExtractor.palette(for: item) else { return }
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard nowPlaying?.trackIdentity == item.trackIdentity else { return }
+                albumPalette = palette
             }
         }
     }

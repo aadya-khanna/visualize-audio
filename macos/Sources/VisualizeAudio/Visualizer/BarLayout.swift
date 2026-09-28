@@ -61,6 +61,7 @@ struct Bar {
 enum ColorMode {
     case frequency
     case intensity
+    case album
 }
 
 private struct BarColorState {
@@ -84,7 +85,7 @@ final class BarField {
 
     /// Computes one frame's bars from raw frequency-domain data (0-255 byte
     /// range, matching AnalyserNode.getByteFrequencyData's convention).
-    func computeBars(freqData: [Float], mood: MoodReading?, colorMode: ColorMode, width: Double, height: Double) -> [Bar] {
+    func computeBars(freqData: [Float], mood: MoodReading?, colorMode: ColorMode, albumPalette: AlbumPalette?, time: TimeInterval, width: Double, height: Double) -> [Bar] {
         let barWidth = width / Double(barCount)
         let intensityTarget = mood.map { targetColor(energyNorm: $0.energyNorm, centroidNorm: $0.centroidNorm) }
             ?? RGB(r: 90, g: 90, b: 120)
@@ -99,14 +100,47 @@ final class BarField {
             let v = Double(smoothed[i])
             let barHeight = v * height * 0.9
 
-            let target = colorMode == .intensity ? intensityTarget : frequencyColor(t: Double(i) / Double(barCount))
+            let target: RGB
+            switch colorMode {
+            case .intensity:
+                target = intensityTarget
+            case .frequency:
+                target = frequencyColor(t: Double(i) / Double(barCount))
+            case .album:
+                if let albumPalette {
+                    // Each bar is dealt one of the cover's own colors and drifts
+                    // slowly in hue around it — see AlbumPalette for why this
+                    // isn't a hue gradient or a spatial layout.
+                    target = albumPalette.color(barIndex: i, barCount: barCount, loudness: v, time: time)
+                } else {
+                    target = intensityTarget
+                }
+            }
+            // Each bar's fixed random jitter gives Frequency/Intensity mode a
+            // little per-bar "personality". Album mode does its own per-bar
+            // variation, in hue and tone around a real album color; this jitter
+            // is a raw RGB offset that would push bars off those colors, so
+            // skip it there.
             var state = colorStates[i]
-            state.r += (target.r + state.jitter - state.r) * state.rate
-            state.g += (target.g + state.jitter * 0.6 - state.g) * state.rate
-            state.b += (target.b - state.jitter * 0.4 - state.b) * state.rate
+            let jitter = colorMode == .album ? 0 : state.jitter
+            // The slow multi-second ease is what gives Frequency/Intensity
+            // their drifting-mood feel, but in Album mode it averages the
+            // loudness-driven lightness away to a constant — the bars stop
+            // pulsing at all. Album mode's hue is fixed per bar (it only
+            // changes when the track does), so it can ease ~20x faster
+            // without any risk of hue flicker: fast enough to read as beats,
+            // slow enough to still smooth per-frame noise.
+            let colorRate = colorMode == .album ? 0.12 : state.rate
+            state.r += (target.r + jitter - state.r) * colorRate
+            state.g += (target.g + jitter * 0.6 - state.g) * colorRate
+            state.b += (target.b - jitter * 0.4 - state.b) * colorRate
             colorStates[i] = state
 
-            let brightness = 0.7 + v * 0.4 // louder bins pop brighter
+            // Album mode already bakes loudness into HSL lightness (hue-preserving);
+            // stacking the flat RGB multiplier on top clips channels unevenly at
+            // high v and washes the color toward white, losing the album hue right
+            // when a bar gets loud. Only the other modes want the extra pop.
+            let brightness = colorMode == .album ? 1.0 : 0.7 + v * 0.4
             bars[i] = Bar(
                 x: Double(i) * barWidth,
                 height: barHeight,

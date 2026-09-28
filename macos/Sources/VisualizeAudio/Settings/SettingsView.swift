@@ -15,8 +15,12 @@ struct SettingsView: View {
             modeRow(DisplayMode.allCases, selected: displayMode) { displayMode = $0 } label: { $0.rawValue }
 
             sectionTitle("Color")
-            modeRow([ColorMode.frequency, .intensity], selected: colorMode) { colorMode = $0 } label: {
-                $0 == .frequency ? "Frequency" : "Intensity"
+            modeRow([ColorMode.frequency, .intensity, .album], selected: colorMode) { colorMode = $0 } label: {
+                switch $0 {
+                case .frequency: return "Frequency"
+                case .intensity: return "Intensity"
+                case .album: return "Album"
+                }
             }
 
             sectionTitle("Audio source")

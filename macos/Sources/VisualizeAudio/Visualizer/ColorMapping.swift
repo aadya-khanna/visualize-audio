@@ -30,7 +30,9 @@ func targetColor(energyNorm: Double, centroidNorm: Double) -> RGB {
     return lerpColor(lowEnergyRow, highEnergyRow, energyNorm)
 }
 
-private func hslToRgb(h: Double, s: Double, l: Double) -> RGB {
+/// Shared HSL->RGB conversion (also used by AlbumPalette.swift for the
+/// album-cover color mode).
+func hslToRgb(h: Double, s: Double, l: Double) -> RGB {
     let c = (1 - abs(2 * l - 1)) * s
     let x = c * (1 - abs((h / 60).truncatingRemainder(dividingBy: 2) - 1))
     let m = l - c / 2
