@@ -1,10 +1,8 @@
 import CoreAudio
 import SwiftUI
 
-// Port of Visualizer.jsx's settings panel (gear button + display/color mode
-// pickers). The "Music" section replaces MusicConnect.jsx's connect/
-// disconnect button — there's no login step with MediaRemote, so this is a
-// passive status row instead.
+// Settings panel (gear button + display/color mode pickers). The music section is a passive
+// status row — there's no login step with MediaRemote.
 struct SettingsView: View {
     @Binding var displayMode: DisplayMode
     @Binding var colorMode: ColorMode

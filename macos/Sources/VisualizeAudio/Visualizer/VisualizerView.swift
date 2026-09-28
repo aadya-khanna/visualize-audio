@@ -1,9 +1,7 @@
 import SwiftUI
 
-// Port of src/Visualizer.jsx: a Canvas draw loop driven by TimelineView
-// (native equivalent of requestAnimationFrame), the gear-button settings
-// panel, and the now-playing track overlay (fed by MediaRemote instead of
-// Spotify OAuth polling).
+// Main visualizer view: a Canvas draw loop driven by TimelineView, the gear-button settings
+// panel, and the now-playing track overlay (fed by MediaRemote).
 struct VisualizerView: View {
     @StateObject private var audioEngine = AudioEngine()
     @StateObject private var mediaRemote = MediaRemoteBridgeStore()

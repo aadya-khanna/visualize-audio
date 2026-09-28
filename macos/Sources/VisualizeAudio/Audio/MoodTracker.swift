@@ -1,6 +1,6 @@
 import Foundation
 
-// Direct port of src/mood.js's MoodTracker. Tracks energy/spectral-centroid
+// Tracks energy/spectral-centroid
 // as continuous, normalized signals via percentile rank within a rolling
 // window, not min-max stretch — mic/tap input tends to be skewed (mostly
 // quiet, occasional loud spikes), and min-max normalization puts the 0.5

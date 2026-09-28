@@ -1,6 +1,6 @@
 import Foundation
 
-// Direct port of src/Visualizer.jsx's bar bucketing/easing logic
+// Log-scaled frequency bucketing and bar easing logic
 // (logBarValue, sampleBinLinear, and the per-frame smoothing/color-easing
 // loop in draw()). Keep in sync with that file.
 
@@ -77,8 +77,7 @@ private func clamp255(_ v: Double) -> Double {
     max(0, min(255, v))
 }
 
-/// Owns the per-bar smoothing/easing state across frames — mirrors
-/// smoothedBarsRef/barColorStateRef in Visualizer.jsx.
+/// Owns the per-bar smoothing/easing state across frames.
 final class BarField {
     private var smoothed = [Float](repeating: 0, count: barCount)
     private var colorStates = (0..<barCount).map { _ in BarColorState() }

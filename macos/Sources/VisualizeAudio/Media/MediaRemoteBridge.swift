@@ -1,6 +1,6 @@
 import Foundation
 
-// Replaces src/spotify.js entirely for the native target: no OAuth/PKCE, no
+// Reads now-playing metadata from the system: no OAuth/PKCE, no
 // developer-dashboard registration, no 25-user cap, no login step. Instead
 // this loads the private MediaRemote framework via dlopen/dlsym — the same
 // technique Isle (github.com/matthewhamilton3141/isle) and other third-party

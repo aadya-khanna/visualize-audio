@@ -1,7 +1,7 @@
 import Accelerate
 import Foundation
 
-// Native replacement for Web Audio's AnalyserNode (src/audioEngine.js's
+// vDSP real FFT with AnalyserNode-compatible byte-range output (replaces Web Audio's
 // `analyser.fftSize`/`getByteFrequencyData`). Computes a windowed real FFT via
 // vDSP and reproduces getByteFrequencyData's byte-range/smoothing convention
 // (see the Web Audio API spec's "smoothing over time" + dB-to-byte mapping)

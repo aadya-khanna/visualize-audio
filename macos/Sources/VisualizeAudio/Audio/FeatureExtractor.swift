@@ -1,6 +1,6 @@
 import Foundation
 
-// Native equivalent of src/audioEngine.js's extractFeatures(), which calls
+// Computes energy, spectral centroid, and loudness from FFT/time-domain data (equivalent to
 // essentia.js's Energy/SpectralCentroidTime/Loudness on the time-domain
 // buffer. Essentia isn't available in Swift, so these are reimplemented from
 // their standard DSP definitions (per the plan: same formulas, not a

@@ -1,8 +1,6 @@
 import Foundation
 
-// Direct port of src/mood.js's color logic. Keep in sync with that file —
-// this is the native target's copy of the same palette/formulas, not a
-// reinterpretation.
+// Mood-aware color mapping: corner-color palette and per-bar target colors.
 
 struct RGB {
     var r: Double

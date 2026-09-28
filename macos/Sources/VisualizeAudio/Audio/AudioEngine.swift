@@ -2,11 +2,8 @@ import Combine
 import CoreAudio
 import Foundation
 
-// Native equivalent of src/audioEngine.js's AudioEngine class: owns whichever
-// source is active (system tap or mic), runs the analyser continuously, and
-// extracts mood features on a timer (matching Visualizer.jsx's 150ms
-// cadence) — same shape as the JS class, just split across the source
-// abstractions above.
+// Coordinates whichever audio source is active (process tap or mic input), runs the analyser
+// continuously, and extracts mood features on a 150ms timer.
 
 enum AudioSource: Equatable {
     case systemTap
@@ -58,9 +55,8 @@ final class AudioEngine: ObservableObject {
         }
     }
 
-    // Mirrors audioEngine.js's stop(): release everything explicitly rather
-    // than waiting on deinit, so the app quitting/switching sources doesn't
-    // leave a device or tap dangling.
+    // Release everything explicitly rather than waiting on deinit, so the app
+    // quitting/switching sources doesn't leave a device or tap dangling.
     func stop() {
         processTap?.stop()
         processTap = nil

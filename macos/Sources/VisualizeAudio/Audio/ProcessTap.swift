@@ -4,15 +4,13 @@ import Foundation
 
 // System-wide audio capture via a macOS 14.4+ Core Audio *process tap* — no
 // virtual loopback device (Background Music/BlackHole), no mic permission,
-// and none of the CoreAudio renegotiation glitch documented in the Electron
-// build's README known issues, because the signal never passes through a
-// virtual device at all.
+// because the signal never passes through a virtual device at all.
 //
 // Pattern follows Apple's WWDC23 "Meet Core Audio taps" session and the
 // open-source AudioCap reference project (github.com/insidegui/AudioCap).
 // Requires the macOS 14.4 SDK (Xcode 15.3+). Verified working against Xcode
-// 26.6 — see macos/AGENTS.md for the two real issues that turned up in that
-// process (TCC permission bundling, FFT dB scaling) and how they were fixed.
+// 26.6 — see AGENTS.md for the real issues that turned up in that process
+// (TCC permission bundling, FFT dB scaling, mono tap) and how they were fixed.
 // Run via scripts/build-app.sh, not a bare `swift build` — see AGENTS.md.
 final class ProcessTap {
     enum TapError: Error {

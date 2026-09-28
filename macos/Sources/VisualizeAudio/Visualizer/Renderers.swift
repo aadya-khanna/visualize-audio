@@ -1,9 +1,9 @@
 import SwiftUI
 
-// Direct port of src/renderers.js. Each renderer takes the same per-bar data
+// Canvas draw functions for each display mode. Each renderer takes the same per-bar data
 // (already computed: position, height, color) and just differs in how it
 // paints it — swapping display mode never touches the audio/color logic
-// upstream. Keep in sync with renderers.js.
+// upstream.
 
 enum DisplayMode: String, CaseIterable {
     case normal = "Normal"

@@ -1,8 +1,7 @@
 import AVFoundation
 import CoreAudio
 
-// Alternate audio source alongside ProcessTap — mirrors src/audioEngine.js's
-// listInputDevices()/getUserMedia() device-picker path, for when a
+// Alternate audio source alongside ProcessTap — AVAudioEngine mic/device capture for when a
 // system-wide tap isn't available or wanted.
 final class MicInputSource {
     struct Device: Identifiable, Hashable {
@@ -15,9 +14,7 @@ final class MicInputSource {
 
     var onAudio: (([Float], Double) -> Void)?
 
-    /// Lists audio *input* devices, same intent as audioEngine.js's
-    /// listInputDevices() (a virtual loopback device would show up here too,
-    /// if one happens to be installed, but it's no longer required).
+    /// Lists available audio input devices (microphones and external inputs).
     static func availableDevices() -> [Device] {
         var propertySize: UInt32 = 0
         var address = AudioObjectPropertyAddress(
