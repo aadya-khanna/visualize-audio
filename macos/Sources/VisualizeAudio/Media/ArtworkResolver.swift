@@ -69,8 +69,8 @@ actor ArtworkResolver {
                 let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                 let results = json["results"] as? [[String: Any]],
                 let first = results.first,
-                let artworkURLString = first["artworkUrl100"] as? String,
-                let artworkURL = URL(string: artworkURLString.replacingOccurrences(of: "100x100", with: "600x600"))
+                let artworkURLString = (first["artworkUrl600"] as? String) ?? (first["artworkUrl100"] as? String),
+                let artworkURL = URL(string: artworkURLString.replacingOccurrences(of: "100x100bb", with: "600x600bb"))
             else { return nil }
             return await downloadImage(from: artworkURL)
         } catch {

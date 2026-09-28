@@ -71,8 +71,7 @@ struct VisualizerView: View {
                         displayMode: $displayMode,
                         colorMode: $colorMode,
                         audioSource: $audioSource,
-                        availableMicDevices: availableMicDevices,
-                        nowPlaying: mediaRemote.nowPlaying
+                        availableMicDevices: availableMicDevices
                     )
                 }
             }

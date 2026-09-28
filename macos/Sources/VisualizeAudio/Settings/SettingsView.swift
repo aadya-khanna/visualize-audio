@@ -1,14 +1,13 @@
 import CoreAudio
 import SwiftUI
 
-// Settings panel (gear button + display/color mode pickers). The music section is a passive
-// status row — there's no login step with MediaRemote.
+// Settings panel: display, color, and audio source only. Now-playing track/artwork is shown
+// on the main visualizer view, not here.
 struct SettingsView: View {
     @Binding var displayMode: DisplayMode
     @Binding var colorMode: ColorMode
     @Binding var audioSource: AudioSource
     let availableMicDevices: [MicInputSource.Device]
-    let nowPlaying: NowPlaying?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -22,42 +21,11 @@ struct SettingsView: View {
 
             sectionTitle("Audio source")
             audioSourceRow
-
-            sectionTitle("Music")
-            musicStatusRow
         }
         .padding(16)
         .frame(width: 240)
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    private var musicStatusRow: some View {
-        HStack(alignment: .top, spacing: 8) {
-            if let nowPlaying {
-                NowPlayingArtwork(artwork: nowPlaying.artwork, size: 36)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(nowPlaying.title ?? nowPlaying.album ?? "Unknown track")
-                        .font(.caption)
-                        .lineLimit(2)
-                    if let artist = nowPlaying.artist, !artist.isEmpty {
-                        Text(artist)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    Text(nowPlaying.isPlaying ? "Playing" : "Paused")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            } else {
-                NowPlayingArtwork(artwork: nil, size: 36)
-                Text("Nothing playing")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 10)
-            }
-        }
     }
 
     private func sectionTitle(_ text: String) -> some View {
